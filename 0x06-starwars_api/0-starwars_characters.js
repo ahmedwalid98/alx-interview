@@ -1,25 +1,44 @@
 #!/usr/bin/node
+// Write a script that prints all characters of a Star Wars movie:
 const request = require('request');
-const API_URL = 'https://swapi-api.hbtn.io/api';
-
-if (process.argv.length > 2) {
-  request(`${API_URL}/films/${process.argv[2]}/`, (err, _, body) => {
-    if (err) {
-      console.log(err);
+const movieID = process.argv[2];
+const getCharacters = new Promise((resolve, reject) => {
+  request.get(
+    `https://swapi-api.alx-tools.com/api/films/${movieID}/`,
+    (err, response, body) => {
+      if (!err) {
+        try {
+          resolve(JSON.parse(body).characters);
+        } catch (error) {
+          reject(error);
+        }
+      }
+      reject(err);
     }
-    const charactersURL = JSON.parse(body).characters;
-    const charactersName = charactersURL.map(
-      url => new Promise((resolve, reject) => {
-        request(url, (promiseErr, __, charactersReqBody) => {
-          if (promiseErr) {
-            reject(promiseErr);
-          }
-          resolve(JSON.parse(charactersReqBody).name);
-        });
-      }));
+  );
+});
 
-    Promise.all(charactersName)
-      .then(names => console.log(names.join('\n')))
-      .catch(allErr => console.log(allErr));
+getCharacters.then((characters) => {
+  const charactersPromises = [];
+
+  for (const character of characters) {
+    charactersPromises.push(
+      new Promise((resolve, reject) => {
+        request.get(character, (err, response, body) => {
+          if (err) reject(err);
+          try {
+            resolve(JSON.parse(body).name);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      })
+    );
+  }
+
+  Promise.all(charactersPromises).then((names) => {
+    for (const name of names) {
+      console.log(name);
+    }
   });
-}
+});
